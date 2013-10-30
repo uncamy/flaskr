@@ -6,14 +6,18 @@ import tempfile
 class FlaskrTest(unittest.TestCase):
 
     def set_up(self):
-        self.datab_fd, flaskr.app.config['DATABASE'] = tempfile.mkstemp()
+        self.db_fd, flaskr.app.config['DATABASE'] = tempfile.mkstemp()
         flaskr.app.config['TESTING'] = True
         self.app = flaskr.app.test_client()
-        flaskr.init_datab()
+        flaskr.init_db()
 
     def tear_down(self):
-        os.close(self.datab_fb)
+        os.close(self.db_fd)
         os.unlink(flaskr.app.config['DATABASE'])
+
+    def test_empty_db(self):
+        rv = self.app.get('/')
+        assert 'No entries here so far' in rv.data
 
 if __name__ == '__main__':
     unittest.main()

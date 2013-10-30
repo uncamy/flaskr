@@ -10,44 +10,42 @@ USERNAME = 'admin'
 PASSWORD = 'default'
 
 # create schema
-def init_datab():
-    with closing(connect_datab()) as datab:
-        with app.open_resource('schema.sql', mode ='r') as read_database:
-            datab.cursor().executescript(f.read())
-            datab.commit()
+def init_db():
+    with closing(connect_db()) as db:
+        with app.open_resource('schema.sql', mode ='r') as open_database:
+            db.cursor().executescript(open_database.read())
+            db.commit()
 
 #create our application :)!
-my_app = Flask(__name__)
-my_app.config.from_object(__name__)
-def connect_datab():
-    return sqlite2.connect(app.config['DATABASE'])
-if __name__ == '__main__':
-   my_app.run()
+app = Flask(__name__)
+app.config.from_object(__name__)
+def connect_db():
+    return sqlite3.connect(app.config['DATABASE'])
 
 @app.before_request
 def before_request():
-    g.datab = connect_datab()
+    g.db = connect_db()
 
 @app.teardown_request
 def teardown_request(exception):
-    datab = getattr(g, 'datab', None)
-    if db is not None:
+    datab = getattr(g, 'db', None)
+    if datab is not None:
         db.close()
 
 @app.route('/')
 def show_entries():
-    get_item = g.datab.execute('select title, text from entries order by id desc')
-    blog_post = [dict(titile=row[0], text=row[1]) for row in get_item.fetchall() ]
-    return render_template('show_entries.html', entries = blog_post)
+    cur  = g.db.execute('select title, text from entries order by id desc')
+    entries = [dict(titile=row[0], text=row[1]) for row in get_item.fetchall() ]
+    return render_template('show_entries.html', entries = entries)
 
 
 @app.route('/add', methods = ['POST'])
 def new_entry():
     if not session.get('logged_in'):
         abort(401)
-        g.datab.execute('insert into entries (title, text) values (?, ?)',
+        g.db.execute('insert into entries (title, text) values (?, ?)',
                         [request.form['title'], request.form['text']])
-        g.datab.commit()
+        g.db.commit()
         flash('New entry wasa succcessfully posted')
         return redirect(url_for('show_entries'))
 
@@ -70,3 +68,6 @@ def signout():
     session.pop('logged_in', None)
     flash('You were logged out')
     return redirect(url_for('show_entries'))
+
+if __name__ == '__main__':
+   app.run()
