@@ -1,26 +1,40 @@
 import sqlite3
-from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from flask import Flask, request, session, g, redirect, url_for, abort,\
+                  render_template, flash
 from contextlib import closing
 
+app = Flask(__name__)
+
 #configuration
-DATABASE = '/tmp/flaskr.db'
-DEBUG = True
-SECRET_KEY = 'development key'
-USERNAME = 'admin'
-PASSWORD = 'default'
+app.config.update(dict(
+    DATABASE = '/tmp/flaskr.db'
+    DEBUG = True
+    SECRET_KEY = 'development key'
+    USERNAME = 'admin'
+    PASSWORD = 'default'
+))
+
+app.config.from_envvar('FLASKR_SETTINGS', silent=True)
+
 
 # create schema
+def connect_db():
+    """connects to the database"""
+    rv =sqlite3.connect(app.config['DATABASE'])
+    rv.row_factory = sqlite3.Row
+    return rv
+
 def init_db():
     with closing(connect_db()) as db:
         with app.open_resource('schema.sql', mode ='r') as open_database:
             db.cursor().executescript(open_database.read())
             db.commit()
 
-#create our application :)!
-app = Flask(__name__)
-app.config.from_object(__name__)
-def connect_db():
-    return sqlite3.connect(app.config['DATABASE'])
+def get_db():
+    if not hasattr(g, 'sqlite_db'):
+        g.sqlite_db = connect_db()
+    return g.sqlite_db
+
 
 @app.before_request
 def before_request():
@@ -28,8 +42,8 @@ def before_request():
 
 @app.teardown_request
 def teardown_request(exception):
-    datab = getattr(g, 'db', None)
-    if datab is not None:
+    db = getattr(g, 'db', None)
+    if db is not None:
         db.close()
 
 @app.route('/')
